@@ -74,6 +74,72 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
     return true;
   }
 
+  // ── Fetch channel info by raw ID (preview step, no storage write) ──
+  // Validates format, fetches the channel page to resolve the real name
+  // and @handle. Used by "Get Channel" before the user confirms blocking.
+  if (msg.type === 'FETCH_CHANNEL_INFO') {
+    (async function () {
+      var cid = (msg.channelId || '').trim();
+
+      // Strict format check: UC + 22 chars = 24 total, alphanumeric/-/_
+      if (!/^UC[\w-]{22}$/.test(cid)) {
+        sendResponse({ success:false, reason:'invalid_format' });
+        return;
+      }
+
+      var data    = await chrome.storage.local.get('blockedChannels');
+      var blocked = data.blockedChannels || {};
+
+      if (blocked[cid]) {
+        sendResponse({ success:false, reason:'already_blocked', name: blocked[cid].name });
+        return;
+      }
+
+      // Resolve name + handle by fetching the channel page
+      var name   = cid;
+      var handle = null;
+      try {
+        var resp = await fetch('https://www.youtube.com/channel/' + cid, { credentials: 'omit' });
+        if (!resp.ok) {
+          sendResponse({ success:false, reason:'fetch_failed' });
+          return;
+        }
+        var text = await resp.text();
+
+        // externalId confirms the ID is real
+        var hasExternal = new RegExp('"externalId"\\s*:\\s*"' + cid + '"').test(text);
+
+        // Channel title
+        var titleMatch = text.match(/"title"\s*:\s*"([^"]+)"\s*,\s*"description"/) ||
+                          text.match(/<meta name="title" content="([^"]+)"/) ||
+                          text.match(/<title>([^<]+)<\/title>/);
+        if (titleMatch && titleMatch[1]) {
+          name = titleMatch[1]
+            .replace(/ - YouTube$/, '')
+            .replace(/\\u0026/g, '&')
+            .trim();
+        }
+
+        // Handle (vanity URL)
+        var vanityMatch = text.match(/"vanityChannelUrl"\s*:\s*"https:\/\/www\.youtube\.com\/(@[\w.-]+)"/);
+        if (vanityMatch && vanityMatch[1]) {
+          handle = vanityMatch[1].toLowerCase();
+        }
+
+        if (!hasExternal && !titleMatch) {
+          sendResponse({ success:false, reason:'fetch_failed' });
+          return;
+        }
+      } catch (e) {
+        sendResponse({ success:false, reason:'fetch_error' });
+        return;
+      }
+
+      sendResponse({ success:true, channelId: cid, name:name, handle:handle });
+    })();
+    return true;
+  }
+
   if (msg.type === 'BLOCK_CHANNEL') {
     chrome.storage.local.get('blockedChannels').then(function(data) {
       var blocked = data.blockedChannels || {};

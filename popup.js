@@ -30,6 +30,17 @@ document.addEventListener('DOMContentLoaded',async function(){
   document.getElementById('btn-quiz').addEventListener('click',function(){startQuiz(null);});
   document.getElementById('q-cancel').addEventListener('click',function(){switchView('main');});
   document.getElementById('btn-focus').addEventListener('click',markFocus);
+  document.getElementById('btn-fetch-channel').addEventListener('click',fetchChannelInfo);
+  document.getElementById('btn-manual-block').addEventListener('click',confirmManualBlock);
+  document.getElementById('manual-cid').addEventListener('keydown',function(e){
+    if(e.key==='Enter') fetchChannelInfo();
+  });
+  document.getElementById('manual-cid').addEventListener('input',function(){
+    // Any edit invalidates the previous fetch result
+    manualResolved = null;
+    document.getElementById('manual-preview').style.display = 'none';
+    document.getElementById('manual-status').textContent = '';
+  });
 
   chrome.storage.onChanged.addListener(function(changes,area){
     if(area!=='local') return;
@@ -119,6 +130,74 @@ async function blockCur(){
   if(!curCid) return;
   await chrome.runtime.sendMessage({type:'BLOCK_CHANNEL',channelId:curCid,channelName:curCname,channelHandle:curHandle});
   toast('Channel blocked','red');
+}
+
+// ── Manual "Get Channel" / "+ Block" two-step flow ──
+var manualResolved = null; // { channelId, name, handle }
+
+async function fetchChannelInfo(){
+  var input  = document.getElementById('manual-cid');
+  var status = document.getElementById('manual-status');
+  var preview = document.getElementById('manual-preview');
+  var raw    = input.value.trim();
+
+  preview.style.display = 'none';
+  manualResolved = null;
+
+  // Allow pasting full URLs — extract the UC id if present
+  var urlMatch = raw.match(/\/channel\/(UC[\w-]{22})/);
+  var cid = urlMatch ? urlMatch[1] : raw;
+
+  if (!/^UC[\w-]{22}$/.test(cid)) {
+    status.textContent = 'Invalid channel ID — must start with UC and be 24 characters total.';
+    status.style.color = 'var(--red)';
+    return;
+  }
+
+  status.textContent = 'Fetching channel info…';
+  status.style.color = 'var(--t3)';
+  var fetchBtn = document.getElementById('btn-fetch-channel');
+  fetchBtn.disabled = true;
+
+  var resp = await chrome.runtime.sendMessage({ type:'FETCH_CHANNEL_INFO', channelId: cid });
+  fetchBtn.disabled = false;
+
+  if (resp && resp.success) {
+    manualResolved = { channelId: resp.channelId, name: resp.name, handle: resp.handle };
+    document.getElementById('manual-preview-name').textContent = resp.name || cid;
+    document.getElementById('manual-preview-id').textContent = resp.channelId + (resp.handle ? ' · ' + resp.handle : '');
+    preview.style.display = '';
+    status.textContent = '';
+  } else if (resp && resp.reason === 'already_blocked') {
+    status.textContent = 'Already blocked: ' + (resp.name || cid);
+    status.style.color = 'var(--amb)';
+  } else if (resp && resp.reason === 'invalid_format') {
+    status.textContent = 'Invalid channel ID format.';
+    status.style.color = 'var(--red)';
+  } else if (resp && resp.reason === 'fetch_failed') {
+    status.textContent = 'Channel not found — check the ID and try again.';
+    status.style.color = 'var(--red)';
+  } else {
+    status.textContent = 'Could not verify channel — try again.';
+    status.style.color = 'var(--red)';
+  }
+}
+
+async function confirmManualBlock(){
+  if (!manualResolved) return;
+  await chrome.runtime.sendMessage({
+    type: 'BLOCK_CHANNEL',
+    channelId: manualResolved.channelId,
+    channelName: manualResolved.name,
+    channelHandle: manualResolved.handle
+  });
+  toast('Channel blocked', 'red');
+
+  // Reset the manual block UI
+  document.getElementById('manual-cid').value = '';
+  document.getElementById('manual-status').textContent = '';
+  document.getElementById('manual-preview').style.display = 'none';
+  manualResolved = null;
 }
 
 async function renderBlocked(){

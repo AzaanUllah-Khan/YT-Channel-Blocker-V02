@@ -153,6 +153,24 @@ body{width:400px;height:560px;background:var(--bg);color:var(--t1);font-family:v
       <div class="sec-title">Blocked Channels</div>
       <div class="sec-badge" id="blk-count">0</div>
     </div>
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-lbl">Block by Channel ID</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="manual-cid" placeholder="UCxxxxxxxxxxxxxxxxxxxxxx"
+          style="flex:1;padding:8px 10px;border:1.5px solid var(--b2);border-radius:var(--rs);font-family:monospace;font-size:11px;color:var(--t1);outline:none;transition:border-color .2s;">
+        <button class="btn btn-ghost" id="btn-fetch-channel" style="flex-shrink:0;">Get Channel</button>
+      </div>
+      <div id="manual-status" style="font-size:10px;color:var(--t3);margin-top:6px;min-height:14px;"></div>
+      <div id="manual-preview" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--b1);">
+        <div class="ch-row">
+          <div class="ch-info">
+            <div class="ch-name" id="manual-preview-name"></div>
+            <div class="ch-id" id="manual-preview-id"></div>
+          </div>
+          <button class="btn btn-red" id="btn-manual-block" style="flex-shrink:0;">+ Block</button>
+        </div>
+      </div>
+    </div>
     <div id="blk-list"><div class="empty"><div class="empty-icon">🔓</div>No channels blocked yet.<br>Visit a YouTube channel or video<br>and tap + Block.</div></div>
   </div>
 
