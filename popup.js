@@ -159,7 +159,19 @@ async function fetchChannelInfo(){
   var fetchBtn = document.getElementById('btn-fetch-channel');
   fetchBtn.disabled = true;
 
+<<<<<<< HEAD
+  var resp;
+  try {
+    resp = await chrome.runtime.sendMessage({ type:'FETCH_CHANNEL_INFO', channelId: cid });
+  } catch (e) {
+    fetchBtn.disabled = false;
+    status.textContent = 'Extension error — try reloading the extension.';
+    status.style.color = 'var(--red)';
+    return;
+  }
+=======
   var resp = await chrome.runtime.sendMessage({ type:'FETCH_CHANNEL_INFO', channelId: cid });
+>>>>>>> 04b6454885ce733a11d6222a7ac4034aa6c17963
   fetchBtn.disabled = false;
 
   if (resp && resp.success) {
@@ -175,7 +187,14 @@ async function fetchChannelInfo(){
     status.textContent = 'Invalid channel ID format.';
     status.style.color = 'var(--red)';
   } else if (resp && resp.reason === 'fetch_failed') {
+<<<<<<< HEAD
+    status.textContent = 'Channel not found' + (resp.detail ? ' (' + resp.detail + ')' : '') + '.';
+    status.style.color = 'var(--red)';
+  } else if (resp && resp.reason === 'fetch_error') {
+    status.textContent = 'Network error' + (resp.detail ? ': ' + resp.detail : '') + '.';
+=======
     status.textContent = 'Channel not found — check the ID and try again.';
+>>>>>>> 04b6454885ce733a11d6222a7ac4034aa6c17963
     status.style.color = 'var(--red)';
   } else {
     status.textContent = 'Could not verify channel — try again.';

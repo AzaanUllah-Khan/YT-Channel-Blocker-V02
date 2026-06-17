@@ -75,8 +75,15 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
   }
 
   // ── Fetch channel info by raw ID (preview step, no storage write) ──
+<<<<<<< HEAD
+  // Validates format, then resolves the real name and @handle using two
+  // strategies: (1) lightweight oEmbed endpoint via a representative video
+  // is not viable without a video id, so we fetch the channel page directly,
+  // with detailed error info returned so failures are diagnosable.
+=======
   // Validates format, fetches the channel page to resolve the real name
   // and @handle. Used by "Get Channel" before the user confirms blocking.
+>>>>>>> 04b6454885ce733a11d6222a7ac4034aa6c17963
   if (msg.type === 'FETCH_CHANNEL_INFO') {
     (async function () {
       var cid = (msg.channelId || '').trim();
@@ -95,6 +102,41 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
         return;
       }
 
+<<<<<<< HEAD
+      var name   = null;
+      var handle = null;
+      var errDetail = null;
+
+      try {
+        var resp = await fetch('https://www.youtube.com/channel/' + cid + '?hl=en', {
+          credentials: 'omit',
+          headers: { 'Accept-Language': 'en-US,en;q=0.9' }
+        });
+
+        if (!resp.ok) {
+          sendResponse({ success:false, reason:'fetch_failed', detail: 'HTTP ' + resp.status });
+          return;
+        }
+
+        var text = await resp.text();
+
+        // externalId confirms the ID is real and the page is a channel page
+        var hasExternal = new RegExp('"externalId"\\s*:\\s*"' + cid + '"').test(text);
+
+        // Channel title — try several patterns, ytInitialData first
+        var titleMatch =
+          text.match(/"channelMetadataRenderer"\s*:\s*\{\s*"title"\s*:\s*"([^"]+)"/) ||
+          text.match(/"title"\s*:\s*"([^"]+)"\s*,\s*"description"/) ||
+          text.match(/<meta\s+property="og:title"\s+content="([^"]*)"/) ||
+          text.match(/<meta\s+name="title"\s+content="([^"]*)"/) ||
+          text.match(/<title>([^<]+)<\/title>/);
+
+        if (titleMatch && titleMatch[1]) {
+          name = titleMatch[1]
+            .replace(/ - YouTube\s*$/, '')
+            .replace(/\\u0026/g, '&')
+            .replace(/&amp;/g, '&')
+=======
       // Resolve name + handle by fetching the channel page
       var name   = cid;
       var handle = null;
@@ -117,21 +159,38 @@ chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
           name = titleMatch[1]
             .replace(/ - YouTube$/, '')
             .replace(/\\u0026/g, '&')
+>>>>>>> 04b6454885ce733a11d6222a7ac4034aa6c17963
             .trim();
         }
 
         // Handle (vanity URL)
+<<<<<<< HEAD
+        var vanityMatch = text.match(/"vanityChannelUrl"\s*:\s*"https?:\/\/(?:www\.)?youtube\.com\/(@[\w.-]+)"/);
+=======
         var vanityMatch = text.match(/"vanityChannelUrl"\s*:\s*"https:\/\/www\.youtube\.com\/(@[\w.-]+)"/);
+>>>>>>> 04b6454885ce733a11d6222a7ac4034aa6c17963
         if (vanityMatch && vanityMatch[1]) {
           handle = vanityMatch[1].toLowerCase();
         }
 
+<<<<<<< HEAD
+        if (!name && !hasExternal) {
+          sendResponse({ success:false, reason:'fetch_failed', detail: 'channel_not_found' });
+          return;
+        }
+
+        if (!name) name = cid; // externalId confirmed but title not parsed — still allow
+
+      } catch (e) {
+        sendResponse({ success:false, reason:'fetch_error', detail: (e && e.message) || String(e) });
+=======
         if (!hasExternal && !titleMatch) {
           sendResponse({ success:false, reason:'fetch_failed' });
           return;
         }
       } catch (e) {
         sendResponse({ success:false, reason:'fetch_error' });
+>>>>>>> 04b6454885ce733a11d6222a7ac4034aa6c17963
         return;
       }
 
